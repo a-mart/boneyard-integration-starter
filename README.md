@@ -13,13 +13,17 @@ Build an MCP server that plugs into [Boneyard](docs/concepts.md) as a
   URL, and `kit dev`, a mock Boneyard gateway for trying tools as a given
   agent, person and channel.
 
-Coding agents: start with [AGENTS.md](AGENTS.md).
+Coding agents: start with [AGENTS.md](AGENTS.md). To build your own server,
+follow [Building a new server](AGENTS.md#building-a-new-server-from-this-starter)
+and the [Replace the example](AGENTS.md#replace-the-example) checklist, which
+lists every file that mentions the ticket example. The kit and its tests don't
+depend on the example, so they keep passing when you delete it.
 
 ## Quick start
 
 ```sh
 npm ci
-npm run verify      # typecheck, tests, and a full conformance run against the reference server
+npm run verify      # typecheck, standards, tests, and a full conformance run against the reference server
 npm run dev         # serve http://127.0.0.1:8750/mcp with the fake backend
 npm run kit:dev     # in a second terminal: call tools as Boneyard would
 ```
@@ -36,9 +40,10 @@ npm run kit -- check https://your-server.example.com/mcp --token-file ./connecti
 |---|---|
 | [contract.md](docs/contract.md) | What your server must do (any language) |
 | [concepts.md](docs/concepts.md) | Connections vs integrations, Off, Ask and Allow, what the admin sees |
+| [backends.md](docs/backends.md) | Backends without an API key (file shares, mounted folders), fixture roots, canaries, admin configuration |
 | [security.md](docs/security.md) | Secrets, least privilege, containment, prompt injection, audit, regulated data |
 | [testing.md](docs/testing.md) | `npm test`, `kit check` (safe and fake modes), `kit dev` |
-| [deploying.md](docs/deploying.md) | Same host (Docker network), elsewhere over HTTPS, Windows service |
+| [deploying.md](docs/deploying.md) | Same host (Docker network), elsewhere over HTTPS, Windows service, file shares |
 | [registering.md](docs/registering.md) | Adding the connection in Boneyard |
 | [server-json.md](docs/server-json.md) | Describing your headers so Boneyard renders a form |
 
