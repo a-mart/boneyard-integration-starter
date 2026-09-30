@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
+import { resourceHash } from "../src/tools/context.js";
 import { connectClient, startTestServer, TEST_BACKEND_KEY, TEST_TOKEN, textOf } from "./helpers.js";
 
 async function post(url: string, headers: Record<string, string>): Promise<Response> {
@@ -76,6 +77,16 @@ test("backend failures come back as tool errors", async () => {
   assert.equal(missing.isError, true);
   assert.match(textOf(missing), /does not exist/u);
   assert.equal(invalid.isError, true);
+});
+
+test("a write logs a hash of the ticket it touched, not the ticket id or the comment", async () => {
+  const server = await startTestServer();
+  const client = await connectClient(server.url);
+  await client.callTool({ name: "ticket_add_comment", arguments: { ticketId: "T-1002", body: "private remark" } });
+  await client.close();
+  const line = server.logs.find((entry) => entry.includes('"tool":"ticket_add_comment"')) ?? "";
+  assert.match(line, new RegExp(`"resourceHash":"${resourceHash("T-1002")}"`, "u"));
+  assert.doesNotMatch(line, /T-1002|private remark/u);
 });
 
 test("an untrusting server ignores caller context when attributing a write", async () => {

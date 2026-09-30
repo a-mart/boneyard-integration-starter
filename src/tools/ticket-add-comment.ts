@@ -29,9 +29,14 @@ export const registerTicketAddComment: ToolRegistration = (server, context) => {
       annotations: { title: "Add a ticket comment", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (input, extra) =>
-      audited(TICKET_ADD_COMMENT, context, async () => {
-        const comment = await context.backend.addComment({ ticketId: input.ticketId, body: input.body, author: commentAuthor(context.caller) }, extra.mcpReq.signal);
-        return jsonResult({ comment });
-      }),
+      audited(
+        TICKET_ADD_COMMENT,
+        context,
+        async () => {
+          const comment = await context.backend.addComment({ ticketId: input.ticketId, body: input.body, author: commentAuthor(context.caller) }, extra.mcpReq.signal);
+          return jsonResult({ comment });
+        },
+        { resource: input.ticketId },
+      ),
   );
 };

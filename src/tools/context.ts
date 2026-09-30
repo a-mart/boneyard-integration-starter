@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { CallToolResult, McpServer } from "@modelcontextprotocol/server";
 
 import { BackendError, type TicketBackend } from "../backend/tickets.js";
@@ -38,7 +40,15 @@ function failureResult(tool: string, context: ToolContext, error: unknown): { re
   return { result: toolError("The server could not complete this call. Try again later."), outcome: "internal_error" };
 }
 
-export async function audited(tool: string, context: ToolContext, run: () => Promise<CallToolResult>): Promise<CallToolResult> {
+export interface AuditOptions {
+  readonly resource?: string;
+}
+
+export function resourceHash(resource: string): string {
+  return createHash("sha256").update(resource, "utf8").digest("hex").slice(0, 16);
+}
+
+export async function audited(tool: string, context: ToolContext, run: () => Promise<CallToolResult>, options: AuditOptions = {}): Promise<CallToolResult> {
   const started = performance.now();
   let settled: { readonly result: CallToolResult; readonly outcome: string };
   try {
@@ -52,6 +62,7 @@ export async function audited(tool: string, context: ToolContext, run: () => Pro
     outcome: settled.outcome,
     durationMs: Math.round(performance.now() - started),
     backendPrincipal: context.backendPrincipal,
+    ...(options.resource === undefined ? {} : { resourceHash: resourceHash(options.resource) }),
     ...callerFields(context.caller),
   });
   return settled.result;
