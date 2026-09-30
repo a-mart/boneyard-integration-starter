@@ -1,0 +1,14 @@
+{
+  "command": ["node", "--import", "tsx", "src/main.ts"],
+  "env": {
+    "HOST": "127.0.0.1",
+    "PORT": "{port}",
+    "LOG_LEVEL": "warn",
+    "CONNECTION_TOKEN_FILE": "{token_file}",
+    "BACKEND": "fake",
+    "BACKEND_API_KEY_FILE": "{random_file:backend-api-key}"
+  },
+  "url": "http://127.0.0.1:{port}/mcp",
+  "canaryFiles": ["{random_file:backend-api-key}"],
+  "fixtures": "kit.fixtures.json"
+}

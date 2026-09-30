@@ -41,6 +41,46 @@ backend.
 The exit code is `0` when nothing fails (warnings allowed) and `1` otherwise.
 `--json` prints a machine-readable report.
 
+### `npm run kit:check` and `kit.config.json`
+
+`npm run kit:check` starts your server as a child process, runs `kit check`
+in safe and fake modes against it, and stops it. It knows nothing about the
+server except what `kit.config.json` says, so it works for a server in any
+language:
+
+```json
+{
+  "command": ["node", "--import", "tsx", "src/main.ts"],
+  "env": {
+    "PORT": "{port}",
+    "CONNECTION_TOKEN_FILE": "{token_file}",
+    "BACKEND": "fake",
+    "BACKEND_API_KEY_FILE": "{random_file:backend-api-key}"
+  },
+  "url": "http://127.0.0.1:{port}/mcp",
+  "canaryFiles": ["{random_file:backend-api-key}"],
+  "fixtures": "kit.fixtures.json"
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `command` | Program and arguments that start the server in fake mode |
+| `env` | Environment added for the server (on top of the current one) |
+| `url` | Where the server answers |
+| `canaryFiles` | Files whose content must never appear in a result (see [Canaries](#canaries)) |
+| `fixtures` | Optional fixtures file |
+| `trustsCallerContext` | `true` if this configuration trusts `Boneyard-*` headers |
+| `startupTimeoutMs` | How long to wait for the server to answer (default 30000) |
+
+Placeholders, usable in `command`, `env`, `url` and `canaryFiles`:
+`{port}` is a free local port, `{token_file}` is a file holding a fresh
+connection token, and `{random_file:<name>}` is a file holding a fresh random
+value (the same file each time the name repeats). The files live in a temporary
+directory that is removed afterwards. Plain paths such as
+`fixtures/outside/secret.txt` pass through unchanged. The server's output is
+printed only when something fails.
+
 ### Canaries
 
 A canary is a secret value the server holds, planted so you can see whether it

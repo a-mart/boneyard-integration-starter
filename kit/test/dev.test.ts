@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { after, test } from "node:test";
 
-import { startTestServer, TEST_TOKEN } from "../../test/helpers.js";
 import { applyAs, callerContextHeaders, runDev, stableUuid, type DevCaller } from "../dev.js";
 import { createTarget } from "../target.js";
+import { startRawServer } from "./raw-server.js";
+import { TEST_TOKEN, textAnswer, WELL_BEHAVED_TOOLS } from "./well-behaved.js";
 
 const caller: DevCaller = { agentName: "Help Desk", personEmail: "pat@example.com", channelName: "it support", trigger: "interactive", sendContext: true };
 
@@ -26,7 +27,12 @@ test("the as command switches the caller", () => {
 });
 
 test("the mock gateway lists tools and calls them as the chosen person", async () => {
-  const server = await startTestServer({ TRUST_CALLER_CONTEXT: "true" });
+  const server = await startRawServer({
+    token: TEST_TOKEN,
+    tools: WELL_BEHAVED_TOOLS,
+    onCall: (name, _args, headers) => textAnswer(`${name} by ${decodeURIComponent(String(headers["boneyard-person-email"] ?? "nobody"))}`),
+  });
+  after(() => server.close());
   const output: string[] = [];
   await runDev(createTarget({ url: server.url, token: TEST_TOKEN, authHeader: "Authorization", extraHeaders: {} }), {
     connectionId: "helpdesk",
@@ -35,13 +41,13 @@ test("the mock gateway lists tools and calls them as the chosen person", async (
     channelName: "general",
     trigger: "interactive",
     sendContext: true,
-    exec: ["tools", 'call ticket_add_comment {"ticketId":"T-1001","body":"hello"}', "context off", 'call ticket_add_comment {"ticketId":"T-1001","body":"again"}', "call nope {"],
+    exec: ["tools", 'call note_add {"text":"hello"}', "context off", 'call note_add {"text":"again"}', "call nope {"],
     write: (text) => output.push(text),
   });
   const text = output.join("");
-  assert.match(text, /mcp__boneyard__helpdesk__tickets_search/u);
-  assert.match(text, /mcp__boneyard_ask__helpdesk__ticket_add_comment/u);
-  assert.match(text, /pat@example\.com via Boneyard/u);
-  assert.match(text, /"author":"Boneyard connection"/u);
+  assert.match(text, /mcp__boneyard__helpdesk__status_get/u);
+  assert.match(text, /mcp__boneyard_ask__helpdesk__note_add/u);
+  assert.match(text, /note_add by pat@example\.com/u);
+  assert.match(text, /note_add by nobody/u);
   assert.match(text, /error: .*JSON/u);
 });

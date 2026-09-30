@@ -10,6 +10,7 @@ export type RawCallHandler = (name: string, args: Record<string, unknown>, heade
 
 export interface RawServerOptions {
   readonly token: string;
+  readonly port?: number;
   readonly checkToken?: boolean;
   readonly protocolVersion?: string;
   readonly tools: readonly Record<string, unknown>[];
@@ -59,7 +60,7 @@ export async function startRawServer(options: RawServerOptions): Promise<RawServ
   const server = createServer((request, response) => {
     handle(request, response, options).catch((error: unknown) => send(response, 500, { error: error instanceof Error ? error.message : "failed" }));
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(options.port ?? 0, "127.0.0.1", resolve));
   const address = server.address();
   if (address === null || typeof address === "string") throw new Error("raw server did not bind");
   return {
