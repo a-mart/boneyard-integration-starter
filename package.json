@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/dev.ts",
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --import tsx --test \"test/**/*.test.ts\" \"kit/test/**/*.test.ts\"",

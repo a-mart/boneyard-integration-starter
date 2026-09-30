@@ -1,0 +1,13 @@
+{
+  "tools": {
+    "tickets_search": [
+      { "arguments": { "query": "vpn" } },
+      { "arguments": { "status": "open", "limit": 50 } },
+      { "arguments": { "query": "instructions" }, "note": "Returns the seeded prompt-injection ticket as data." }
+    ],
+    "ticket_add_comment": [
+      { "arguments": { "ticketId": "T-1001", "body": "Replaced the duplex roller; please retest." } },
+      { "arguments": { "ticketId": "T-99999", "body": "This ticket does not exist." }, "expect": "error" }
+    ]
+  }
+}

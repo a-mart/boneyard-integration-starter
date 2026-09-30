@@ -1,17 +1,6 @@
 import { z } from "zod";
 
-export const CALLER_CONTEXT_HEADERS = {
-  agentId: "Boneyard-Agent-Id",
-  agentName: "Boneyard-Agent-Name",
-  runId: "Boneyard-Run-Id",
-  toolCallId: "Boneyard-Tool-Call-Id",
-  channelId: "Boneyard-Channel-Id",
-  channelName: "Boneyard-Channel-Name",
-  trigger: "Boneyard-Trigger",
-  personId: "Boneyard-Person-Id",
-  personEmail: "Boneyard-Person-Email",
-  contextStatus: "Boneyard-Context-Status",
-} as const;
+import { CALLER_CONTEXT_HEADERS, CALLER_CONTEXT_STATUSES, CALLER_TRIGGERS } from "../contract/boneyard.js";
 
 const MAX_HEADER_LENGTH = 1024;
 
@@ -26,10 +15,10 @@ const ContextFieldsSchema = z.object({
   toolCallId: optional(z.string().min(1).max(128)),
   channelId: optional(z.uuid()),
   channelName: optional(z.string().min(1).max(200)),
-  trigger: optional(z.enum(["interactive", "routine", "unknown"])),
+  trigger: optional(z.enum(CALLER_TRIGGERS)),
   personId: optional(z.uuid()),
   personEmail: optional(z.email().max(320)),
-  contextStatus: optional(z.enum(["verified", "missing", "invalid"])),
+  contextStatus: optional(z.enum(CALLER_CONTEXT_STATUSES)),
 });
 
 export type TrustedCallerContext = { readonly trusted: true } & Readonly<z.infer<typeof ContextFieldsSchema>>;
@@ -55,8 +44,4 @@ export function parseCallerContext(lookup: HeaderLookup, trusted: boolean): Call
   if (!trusted) return UNTRUSTED_CONTEXT;
   const raw = Object.fromEntries(Object.entries(CALLER_CONTEXT_HEADERS).map(([key, header]) => [key, decodeValue(lookup(header))]));
   return { trusted: true, ...ContextFieldsSchema.parse(raw) };
-}
-
-export function encodeCallerContextValue(value: string): string {
-  return encodeURIComponent(value);
 }
