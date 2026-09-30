@@ -20,14 +20,17 @@ Whichever you pick:
 
 ## Same host as Boneyard
 
-Boneyard's gateway joins an external Docker network named
-**`boneyard-integrations`**. Put your container on that network and give it
-**no published ports**: it is then reachable only by containers on that
-network, as `http://<service-name>:<port>/mcp`.
+When integrations are enabled, Boneyard creates a Docker network named
+**`boneyard-integrations`** and its gateway joins it. Put your container on that
+network and give it **no published ports**: it is then reachable only by the
+gateway, as `http://<service-name>:<port>/mcp`.
+
+The network is **internal**, so it has no route out of the host. If your server
+calls a backend (an API, a database, a file server), also attach it to a
+network of your own that has egress, as `compose.example.yml` does with
+`backend`. Never create `boneyard-integrations` yourself; Boneyard owns it.
 
 ```sh
-# once per host; the Boneyard operator may already have created it
-docker network create boneyard-integrations
 
 mkdir -p secrets
 openssl rand -base64 48 | tr -d '\n' > secrets/connection-token   # or paste the token Boneyard generated

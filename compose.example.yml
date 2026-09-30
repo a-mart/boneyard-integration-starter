@@ -14,7 +14,7 @@ services:
       TRUST_CALLER_CONTEXT: "false"
       LOG_LEVEL: info
     secrets: [connection_token, backend_api_key]
-    networks: [boneyard-integrations]
+    networks: [boneyard-integrations, backend]
 
 secrets:
   connection_token:
@@ -25,3 +25,4 @@ secrets:
 networks:
   boneyard-integrations:
     external: true
+  backend: {}
