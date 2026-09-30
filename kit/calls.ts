@@ -1,4 +1,4 @@
-import type { CallToolResult, Tool } from "@modelcontextprotocol/client";
+import type { CallToolResult } from "@modelcontextprotocol/client";
 import { z } from "zod";
 
 import type { Fixtures } from "./fixtures.js";
@@ -34,11 +34,26 @@ export async function callTool(session: ClientSession, tool: string, args: Recor
   }
 }
 
+const ListedToolSchema = z
+  .object({
+    name: z.string(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    inputSchema: z.record(z.string(), z.unknown()),
+    annotations: z.object({ readOnlyHint: z.unknown().optional(), destructiveHint: z.unknown().optional() }).loose().optional(),
+  })
+  .loose();
+
+const ListPageSchema = z.object({ tools: z.array(ListedToolSchema), nextCursor: z.string().optional() }).loose();
+
+export type Tool = z.infer<typeof ListedToolSchema>;
+
 export async function listAllTools(session: ClientSession): Promise<Tool[]> {
   const tools: Tool[] = [];
   let cursor: string | undefined;
   do {
-    const page = await session.client.listTools(cursor === undefined ? {} : { cursor }, { timeout: REQUEST_TIMEOUT_MS });
+    const params = cursor === undefined ? {} : { cursor };
+    const page = await session.client.request({ method: "tools/list", params }, ListPageSchema, { timeout: REQUEST_TIMEOUT_MS });
     tools.push(...page.tools);
     cursor = page.nextCursor;
   } while (cursor !== undefined && tools.length <= 5000);

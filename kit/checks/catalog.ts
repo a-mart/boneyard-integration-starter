@@ -1,5 +1,3 @@
-import type { Tool } from "@modelcontextprotocol/client";
-
 import {
   AGENT_TOOL_NAME_LIMIT,
   AGENT_TOOL_PREFIX,
@@ -12,7 +10,7 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS,
   TOOL_NAME_PATTERN,
 } from "../../contract/boneyard.js";
-import { listAllTools } from "../calls.js";
+import { listAllTools, type Tool } from "../calls.js";
 import { result, type CheckResult } from "../report.js";
 import { connect, type Target } from "../target.js";
 import { containsSecret } from "./secrets.js";
@@ -85,7 +83,7 @@ export function checkAnnotations(tools: readonly Tool[]): CheckResult {
 
 export function checkInputSchemas(tools: readonly Tool[]): CheckResult {
   const failures = tools.filter((tool) => tool.inputSchema.type !== "object").map((tool) => `${tool.name}: inputSchema.type must be "object".`);
-  return result("tools.input-schemas", "safe", failures.length > 0 ? "fail" : "pass", failures.length > 0 ? "Some input schemas are not objects." : "Every input schema is an object schema.", failures);
+  return result("tools.input-schemas", "safe", failures.length > 0 ? "fail" : "pass", failures.length > 0 ? "Some input schemas are not objects; MCP clients, including the Boneyard gateway, reject the whole tool list." : "Every input schema is an object schema.", failures);
 }
 
 export function checkMetadata(tools: readonly Tool[]): CheckResult {

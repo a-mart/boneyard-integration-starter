@@ -1,9 +1,7 @@
 import { randomBytes } from "node:crypto";
 
-import type { Tool } from "@modelcontextprotocol/client";
-
 import { CALLER_CONTEXT_HEADERS, classifyTool } from "../../contract/boneyard.js";
-import { describeOutcome } from "../calls.js";
+import { describeOutcome, type Tool } from "../calls.js";
 import type { Fixtures } from "../fixtures.js";
 import { result, type CheckResult } from "../report.js";
 import { authHeaders, connect, type Target } from "../target.js";

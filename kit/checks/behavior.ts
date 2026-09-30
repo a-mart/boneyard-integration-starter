@@ -1,7 +1,6 @@
-import type { Tool } from "@modelcontextprotocol/client";
 
 import { MAX_TOOL_RESULT_BYTES } from "../../contract/boneyard.js";
-import { callTool, describeOutcome, planCalls, type CallOutcome, type PlannedCall } from "../calls.js";
+import { callTool, describeOutcome, planCalls, type CallOutcome, type PlannedCall, type Tool } from "../calls.js";
 import type { Fixtures } from "../fixtures.js";
 import { result, type CheckResult } from "../report.js";
 import { invalidArguments } from "../schema-args.js";
@@ -68,6 +67,6 @@ export async function checkErrorsAsResults(session: ClientSession, tools: readon
   const unknown = await callTool(session, "kit_unknown_tool_probe", {});
   if (unknown.kind === "failure") failures.push(`An unknown tool name produced a ${describeOutcome(unknown)}.`);
   const status = failures.length > 0 ? "fail" : warnings.length > 0 ? "warn" : "pass";
-  const summary = status === "pass" ? `Invalid arguments on ${probed} tools came back as tool error results.` : "Some errors were not returned as tool results.";
+  const summary = status === "pass" ? `Invalid arguments on ${probed} tools and an unknown tool name were answered without transport failures.` : "Some errors were not returned as tool results.";
   return result("results.errors", "fake", status, summary, [...failures, ...warnings]);
 }
