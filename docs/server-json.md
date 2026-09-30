@@ -120,9 +120,23 @@ Top level (required by the schema):
 ## Validate it
 
 ```sh
-curl -sO https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json
-npx -y -p ajv-cli@5 ajv validate --spec=draft7 --strict=false -s server.schema.json -d server.json
-# prints "server.json valid"; "unknown format" notices are harmless
+npm run validate:server-json                  # validates ./server.json
+npm run validate:server-json -- other.json    # or another file
+```
+
+It prints `server.json valid`; `unknown format` notices are harmless.
+[`scripts/validate-server-json.sh`](../scripts/validate-server-json.sh)
+downloads the official schema into a temporary directory, runs
+[ajv-cli](https://github.com/ajv-validator/ajv-cli) through `npx`, and removes
+the directory afterwards, so nothing is left in the working tree. It needs
+`sh`, `curl` and network access, so it isn't part of `npm run verify`; run it
+whenever you change `server.json`. By hand:
+
+```sh
+dir=$(mktemp -d)
+curl -fsSL -o "$dir/server.schema.json" https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json
+npx -y -p ajv-cli@5 ajv validate --spec=draft7 --strict=false -s "$dir/server.schema.json" -d server.json
+rm -rf "$dir"
 ```
 
 The reference `server.json` and the "Host in the URL" example above both

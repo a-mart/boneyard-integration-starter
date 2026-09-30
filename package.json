@@ -16,6 +16,7 @@
     "kit": "tsx kit/cli.ts",
     "kit:check": "tsx kit/local-check.ts",
     "kit:dev": "tsx kit/cli.ts dev http://127.0.0.1:8750/mcp --token-file .dev/connection-token",
+    "validate:server-json": "sh scripts/validate-server-json.sh",
     "verify": "npm run typecheck && npm test && npm run kit:check"
   },
   "dependencies": {
