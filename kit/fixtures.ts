@@ -5,7 +5,7 @@ import { z } from "zod";
 const FixtureCaseSchema = z
   .object({
     arguments: z.record(z.string(), z.unknown()),
-    expect: z.enum(["result", "error"]).default("result"),
+    expect: z.enum(["result", "error", "refusal"]).default("result"),
     note: z.string().max(500).optional(),
   })
   .strict();

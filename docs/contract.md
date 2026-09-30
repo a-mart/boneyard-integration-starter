@@ -223,5 +223,6 @@ that this review is expected, and keep tool metadata stable across replicas.
 
 `kit check <url> --token-file <file>` runs the checks that are safe against
 production: discovery, authentication and the tool list. Add `--fake` against
-a server running on its fake backend to call tools and test canaries, result
-sizes, errors and caller-context handling. See [testing.md](testing.md).
+a server running on test data (a fake backend or synthetic fixture roots) to
+call tools and test canaries, expected refusals, result sizes, errors and
+caller-context handling. See [testing.md](testing.md).

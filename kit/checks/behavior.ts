@@ -21,12 +21,17 @@ export async function executePlan(session: ClientSession, tools: readonly Tool[]
 export function checkFixtureCoverage(tools: readonly Tool[], fixtures: Fixtures, executed: readonly ExecutedCall[]): CheckResult {
   const names = new Set(tools.map((tool) => tool.name));
   const problems = Object.keys(fixtures.tools).filter((name) => !names.has(name)).map((name) => `Fixtures name "${name}", which the server does not list.`);
+  const breaches: string[] = [];
   for (const { call, outcome } of executed) {
     const failed = outcome.kind !== "result" || outcome.result.isError === true;
     if (call.expect === "result" && failed) problems.push(`${call.tool} (${call.source} arguments) returned a ${describeOutcome(outcome)}.`);
     if (call.expect === "error" && !failed) problems.push(`${call.tool} was expected to return a tool error but succeeded.`);
+    if (call.expect === "refusal" && !failed) breaches.push(`${call.tool} ${JSON.stringify(call.arguments)} must be refused but succeeded.`);
   }
-  const summary = problems.length > 0 ? "Some calls did not behave as the fixtures expect; add or fix fixtures for real coverage." : `${executed.length} calls behaved as expected.`;
+  const refusals = executed.filter(({ call }) => call.expect === "refusal").length;
+  if (breaches.length > 0) return result("calls.fixtures", "fake", "fail", "A call the fixtures mark as a refusal succeeded; the server let it through.", [...breaches, ...problems]);
+  const refused = refusals > 0 ? `, including ${refusals} expected refusals` : "";
+  const summary = problems.length > 0 ? "Some calls did not behave as the fixtures expect; add or fix fixtures for real coverage." : `${executed.length} calls behaved as expected${refused}.`;
   return result("calls.fixtures", "fake", problems.length > 0 ? "warn" : "pass", summary, problems);
 }
 

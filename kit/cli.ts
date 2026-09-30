@@ -19,8 +19,10 @@ Connection options:
   --header "<Name: value>"   Extra non-secret header the admin configured (repeatable)
 
 check options:
-  --fake                     Also run the checks that call tools. Only against a server on its fake backend.
-  --canary-file <file>       A secret the server holds in fake mode (e.g. its backend key); must never be echoed (repeatable)
+  --fake                     Also run the checks that call tools, including write tools. Only against a server
+                             on test data: a fake backend or synthetic fixture roots, never production.
+  --canary-file <file>       A value that must never appear in a result: a secret the server holds (such as its
+                             backend key) or content outside the allowed scope (repeatable)
   --fixtures <file>          Tool arguments to use instead of synthesized ones
   --trusts-caller-context    The server is configured to trust Boneyard-* headers; skip the forged-header check
   --max-result-bytes <n>     Result size cap (default: the contract cap)

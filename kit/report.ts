@@ -36,7 +36,7 @@ export function formatReport(report: Report): string {
   const lines = [
     `Boneyard connection contract v1: kit check`,
     `Target: ${report.target}`,
-    `Mode:   ${report.mode === "safe" ? "safe (discovery and auth only; no tool calls)" : "fake (calls every tool; never point this at production)"}`,
+    `Mode:   ${report.mode === "safe" ? "safe (discovery and auth only; no tool calls)" : "fake (calls every tool on test data; never point this at production)"}`,
     "",
   ];
   for (const check of report.checks) {

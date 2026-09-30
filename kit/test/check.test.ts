@@ -106,3 +106,23 @@ test("an unsupported protocol version fails discovery", async () => {
   const report = await checkRaw({ protocolVersion: "2024-11-05" });
   assert.equal(statusOf(report, "discovery"), "fail");
 });
+
+test("a call the fixtures mark as a refusal fails the check when it succeeds", async () => {
+  const fixtures = {
+    tools: {
+      status_get: [
+        { arguments: { item: "../outside" }, expect: "refusal" as const },
+        { arguments: { item: "missing" }, expect: "error" as const },
+      ],
+    },
+  };
+  const escaping = await checkRaw({}, { fixtures });
+  assert.equal(statusOf(escaping, "calls.fixtures"), "fail");
+  const refusing = await checkRaw({ onCall: (name, args, headers) => (name === "status_get" ? textAnswer("Refused.", true) : wellBehavedCall(name, args, headers)) }, { fixtures });
+  assert.equal(statusOf(refusing, "calls.fixtures"), "pass");
+});
+
+test("an expected error that succeeds is only a warning", async () => {
+  const report = await checkRaw({}, { fixtures: { tools: { status_get: [{ arguments: { item: "missing" }, expect: "error" }] } } });
+  assert.equal(statusOf(report, "calls.fixtures"), "warn");
+});

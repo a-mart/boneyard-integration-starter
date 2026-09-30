@@ -13,7 +13,7 @@ export type CallOutcome =
 export interface PlannedCall {
   readonly tool: string;
   readonly arguments: Record<string, unknown>;
-  readonly expect: "result" | "error";
+  readonly expect: "result" | "error" | "refusal";
   readonly source: "fixture" | "synthesized";
 }
 

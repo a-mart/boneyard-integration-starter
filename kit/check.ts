@@ -59,7 +59,7 @@ export async function runChecks(target: Target, options: CheckOptions): Promise<
     checks.push(checkToolNames(discovery.tools), checkAnnotations(discovery.tools), checkInputSchemas(discovery.tools), checkMetadata(discovery.tools));
     checks.push(checkCatalogSecrets(discovery, [target.token, ...options.canaries]));
   }
-  if (!options.fake) checks.push(...skippedFakeChecks("Needs --fake: the server must run against its fake backend."));
+  if (!options.fake) checks.push(...skippedFakeChecks("Needs --fake: the server must run on test data (a fake backend or synthetic fixtures)."));
   else if (discovery === null) checks.push(...skippedFakeChecks("Skipped because discovery failed."));
   else checks.push(...(await fakeChecks(target, discovery, options)));
   return { target: target.url.toString(), mode: options.fake ? "fake" : "safe", checks };

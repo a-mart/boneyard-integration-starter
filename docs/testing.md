@@ -4,8 +4,8 @@ Test at three levels. Only the last one touches anything real.
 
 | Level | Command | Against |
 |---|---|---|
-| Unit and integration tests | `npm test` | Your code, in-process, with the fake backend |
-| Conformance, fake mode | `npm run kit:check`, or `npm run kit -- check <url> --fake ...` | A running server on its **fake** backend |
+| Unit and integration tests | `npm test` | Your code, in-process, on test data |
+| Conformance, fake mode | `npm run kit:check`, or `npm run kit -- check <url> --fake ...` | A running server on **test data** |
 | Conformance, safe mode | `npm run kit -- check <url> --token-file <file>` | Any server, including production |
 
 ## `kit check`
@@ -17,8 +17,17 @@ npm run kit -- check <url> --token-file <file> [--fake] [--canary-file <file>] [
 It works against any server URL, whatever language the server is written in.
 Checks marked **safe** only discover tools and test authentication, so you
 can run them against production. Checks marked **fake** call every tool,
-**including write tools**. Run those only against a server on its fake
-backend.
+**including write tools**. Run those only against a server on test data.
+
+"Test data" depends on the backend (see [backends.md](backends.md)):
+
+- for an API backend, an in-memory **fake backend** with synthetic records
+  that checks a synthetic credential;
+- for a file share or another identity-based backend, **synthetic fixture
+  roots**: real folders on disk holding synthetic files, published through
+  the same configuration production uses.
+
+The flag is called `--fake` either way.
 
 | Check | Mode | Passes when |
 |---|---|---|
@@ -31,7 +40,7 @@ backend.
 | `tools.input-schemas` | safe | Every `inputSchema` has `type: "object"` |
 | `tools.metadata` | safe | Titles and descriptions fit the limits; a missing description is a warning |
 | `secrets.catalog` | safe | The tool list never contains the token or a canary |
-| `calls.fixtures` | fake | Each planned call succeeds, or fails if the fixture says `"expect": "error"`. Otherwise a warning |
+| `calls.fixtures` | fake | Each planned call succeeds, or fails if the fixture says `"expect": "error"` (otherwise a warning). A call marked `"expect": "refusal"` that succeeds is a **failure** |
 | `secrets.canary` | fake | No tool result contains the token, the `X-Kit-Canary` header value, or any `--canary-file` value (raw, base64, hex or percent-encoded) |
 | `results.size` | fake | Every result is at most 256 KiB serialized |
 | `results.errors` | fake | Invalid arguments come back as `isError` results (a JSON-RPC error is a warning), and nothing fails at the transport level, including an unknown tool name |
@@ -120,6 +129,32 @@ fixtures:
 `kit.fixtures.json` in this repository is the working example. Include at
 least one call per tool that returns the largest realistic result, so that
 `results.size` means something.
+
+Each case has an `expect`:
+
+| `expect` | Meaning | If the call succeeds anyway |
+|---|---|---|
+| `"result"` (default) | The call succeeds | - |
+| `"error"` | An ordinary failure: not found, invalid input | Warning: your fixture may be stale |
+| `"refusal"` | A **security boundary** the server must hold: a path escape, a root that isn't published, a symlink out of the root, an id in the wrong format | **Failure**: the boundary didn't hold |
+
+Any failure counts as a refusal: an `isError` result or a JSON-RPC error. Mark
+every containment test as a refusal, so that a regression shows up as `FAIL`
+rather than as a warning that is easy to miss:
+
+```json
+{
+  "tools": {
+    "file_read": [
+      { "arguments": { "ref": "policies:handbook.md" } },
+      { "arguments": { "ref": "policies:missing.md" }, "expect": "error" },
+      { "arguments": { "ref": "policies:../outside/secret.txt" }, "expect": "refusal" },
+      { "arguments": { "ref": "policies:escape-link.txt" }, "expect": "refusal", "note": "Symlink to a file outside the root." },
+      { "arguments": { "ref": "billing:" }, "expect": "refusal", "note": "Not a published root." }
+    ]
+  }
+}
+```
 
 ### Caller context
 

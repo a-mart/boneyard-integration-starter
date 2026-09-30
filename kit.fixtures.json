@@ -7,7 +7,8 @@
     ],
     "ticket_add_comment": [
       { "arguments": { "ticketId": "T-1001", "body": "Replaced the duplex roller; please retest." } },
-      { "arguments": { "ticketId": "T-99999", "body": "This ticket does not exist." }, "expect": "error" }
+      { "arguments": { "ticketId": "T-99999", "body": "This ticket does not exist." }, "expect": "error" },
+      { "arguments": { "ticketId": "T-1001/../T-1002", "body": "Path-like ids must never reach the backend." }, "expect": "refusal" }
     ]
   }
 }
