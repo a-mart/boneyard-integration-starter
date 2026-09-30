@@ -12,12 +12,13 @@
     "start": "node dist/src/main.js",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
+    "lint": "tsx scripts/standards.ts",
     "test": "node --import tsx --test \"test/**/*.test.ts\" \"kit/test/**/*.test.ts\"",
     "kit": "tsx kit/cli.ts",
     "kit:check": "tsx kit/local-check.ts",
     "kit:dev": "tsx kit/cli.ts dev http://127.0.0.1:8750/mcp --token-file .dev/connection-token",
     "validate:server-json": "sh scripts/validate-server-json.sh",
-    "verify": "npm run typecheck && npm test && npm run kit:check"
+    "verify": "npm run typecheck && npm run lint && npm test && npm run kit:check"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.2.0",

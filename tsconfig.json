@@ -14,5 +14,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "contract/**/*.ts", "test/**/*.ts", "kit/**/*.ts"]
+  "include": ["src/**/*.ts", "contract/**/*.ts", "test/**/*.ts", "kit/**/*.ts", "scripts/**/*.ts"]
 }

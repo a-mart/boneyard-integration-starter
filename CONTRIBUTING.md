@@ -6,6 +6,8 @@
    (see `kit/test/check.test.ts` and `kit/test/raw-server.ts`), and the reference server must still pass.
 3. Mark each check `safe` only if it never calls a tool.
 4. No real hostnames, credentials, customer data or regulated data anywhere, including fixtures and issues.
-5. Code style: no comments in code, zod for every external input, no `any`, no non-null assertions,
-   no type-check suppressions, functions under 100 lines and files under 600.
+5. Code style. `npm run lint` (`scripts/standards.ts`, part of `npm run verify`) enforces: no comments
+   in TypeScript (which also rules out type-check suppressions), no `any`, no non-null assertions,
+   functions of at most 100 lines and files of at most 600. Review enforces the rest: parse every
+   external input (requests, configuration, files, backend responses) with zod.
 6. Run `npm run verify` before opening a pull request.
