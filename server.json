@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.example/tickets",
+  "title": "Example tickets",
+  "description": "Search help-desk tickets and add comments. Reference server for Boneyard connections.",
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "http://example-tickets:8750/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Connection token. Generate it in Boneyard and install the same value on the server (CONNECTION_TOKEN_FILE).",
+          "isRequired": true,
+          "isSecret": true,
+          "value": "Bearer {connection_token}",
+          "variables": {
+            "connection_token": {
+              "description": "The connection token, at least 32 characters.",
+              "isRequired": true,
+              "isSecret": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

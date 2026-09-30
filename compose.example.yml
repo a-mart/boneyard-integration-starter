@@ -1,0 +1,27 @@
+name: example-tickets
+
+services:
+  example-tickets:
+    build: .
+    image: example-tickets-mcp:local
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      CONNECTION_TOKEN_FILE: /run/secrets/connection_token
+      BACKEND_API_KEY_FILE: /run/secrets/backend_api_key
+      TRUST_CALLER_CONTEXT: "false"
+      LOG_LEVEL: info
+    secrets: [connection_token, backend_api_key]
+    networks: [boneyard-integrations]
+
+secrets:
+  connection_token:
+    file: ./secrets/connection-token
+  backend_api_key:
+    file: ./secrets/backend-api-key
+
+networks:
+  boneyard-integrations:
+    external: true
