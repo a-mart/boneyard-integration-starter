@@ -92,9 +92,13 @@ printed only when something fails.
 
 ### Canaries
 
-A canary is a secret value the server holds, planted so you can see whether it
-ever comes back out. Start the server in fake mode with a random backend key,
-and pass the same file to the kit:
+A canary is a value that must never appear in a tool result, planted so you
+can see whether it ever comes out. There are two patterns; use every one that
+applies to your backend (see [backends.md](backends.md)).
+
+**A secret the server holds.** For an API backend, start the server in fake
+mode with a random backend key, and pass the same file to the kit.
+`kit.config.json` does this with `{random_file:backend-api-key}`; by hand:
 
 ```sh
 openssl rand -hex 24 > /tmp/canary
@@ -102,10 +106,31 @@ BACKEND_API_KEY_FILE=/tmp/canary CONNECTION_TOKEN_FILE=.dev/connection-token npm
 npm run kit -- check http://127.0.0.1:8750/mcp --token-file .dev/connection-token --fake --canary-file /tmp/canary
 ```
 
-A Python or C# server does the same with its own secret variable. The kit
-always treats the connection token and a random `X-Kit-Canary` request header
-as canaries too, so a server that echoes request headers fails even without
-`--canary-file`.
+A Python or C# server does the same with its own secret variable.
+
+**Content outside the allowed scope.** A server that authenticates as its
+own identity (a file share under a gMSA, a mounted folder) may hold no secret
+at all. What it must protect is everything it can reach but mustn't serve. Put
+a unique random line in a file **outside** every published root of the
+synthetic fixtures, link to it from inside a root, and pass that file as the
+canary:
+
+```sh
+npm run kit -- check http://127.0.0.1:8750/mcp --token-file .dev/connection-token --fake \
+  --canary-file fixtures/outside/not-shared.txt --fixtures kit.fixtures.json
+```
+
+Then any path that reads it (`..`, a symlink, a junction, a case or Unicode
+variant, a link into another root) fails `secrets.canary`, even one you didn't
+think to write a fixture for. Pair it with `"expect": "refusal"` fixtures for
+the escapes you know about ([Fixtures](#fixtures)). The same idea applies to
+any scoped backend: a record in another tenant, a mailbox the connection
+doesn't serve, a row the service account can read but the tool shouldn't
+return.
+
+The kit always treats the connection token and a random `X-Kit-Canary` request
+header as canaries too, so a server that echoes request headers fails even
+without `--canary-file`.
 
 ### Fixtures
 
@@ -203,9 +228,47 @@ It also reads commands from stdin when stdin isn't a terminal.
   connection.
 - Logs: no secret values (see `test/log.test.ts`).
 - Containment, for file or object stores: `..`, absolute paths, symlinks and
-  junctions that escape, and case and Unicode variants are refused.
+  junctions that escape, links into another root, and case and Unicode
+  variants are refused (see below).
 - Caller context: ignored when trust is off; parsed and logged when it is on;
   malformed values tolerated.
+
+### Case and Unicode variants, portably
+
+File systems disagree about names, so a containment test that passes on your
+laptop can mean something different in production:
+
+| File system | Case | Unicode normalization |
+|---|---|---|
+| APFS (macOS default) | Insensitive, preserving: `Policies` opens `policies` | Insensitive: NFC `é` and NFD `e` + `◌́` open the same file |
+| ext4, XFS (Linux, containers) | Sensitive: `Policies` is a different, usually missing, name | Byte-exact: NFC and NFD are different names |
+| NTFS, SMB shares | Insensitive, preserving | Byte-exact, but many clients normalize |
+
+Write the tests so they hold on all of them:
+
+- Assert the security property, not the file-system behavior: a variant is
+  either refused or resolves to **the same file inside the same root**, and
+  never reaches anything outside. For example, compare the `realpath` of what
+  was served with the `realpath` of the fixture, instead of asserting "not
+  found".
+- Generate variants in the test (`name.toUpperCase()`, `name.normalize("NFD")`)
+  and create any files that need them in a temporary directory at setup. Don't
+  commit two names that differ only by case or normalization: the checkout
+  breaks on macOS and Windows.
+- Compare root names and reference segments exactly, in your own code, before
+  touching the file system, so the rules for the model don't depend on the
+  host.
+- Run the suite on Linux as well as on your workstation. CI (`ubuntu-latest`)
+  does it on every push; to do it locally on macOS or Windows, run the tests in
+  the same Linux image the Dockerfile uses:
+
+```sh
+docker run --rm -v "$PWD":/src:ro -w /work node:22-bookworm-slim sh -c \
+  'tar -C /src --exclude=./node_modules --exclude=./.git -cf - . | tar -xf - && npm ci && npm test'
+```
+
+The source is mounted read-only and copied inside the container, so the
+container's own `node_modules` never mixes with the host's.
 
 ## Before registering
 
