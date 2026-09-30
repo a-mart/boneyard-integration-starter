@@ -27,9 +27,11 @@ and any secrets the headers need.
    choices. Without it, you configure a URL and one optional auth header by
    hand.
 5. **Set the secrets.** Either:
-   - **Generate a token.** Boneyard creates a random connection token and
-     shows it **once**. Copy it to the server owner, who installs it as
-     `CONNECTION_TOKEN_FILE` (or the equivalent) and restarts the server.
+   - **Generate a token.** Boneyard creates a random connection token, saves
+     it in its secret store and shows it **once**. Where the server's operator
+     can read that store (see [where secrets live](#where-secrets-live)), they
+     install it from there as `CONNECTION_TOKEN_FILE` (or the equivalent) and
+     nobody copies it by hand. Otherwise, copy it to the server owner once.
    - **Enter a secret** the server owner gave you, such as an API key for a
      third-party MCP server.
 
@@ -65,3 +67,27 @@ and any secrets the headers need.
 - **Two audiences, one server:** add a second connection with its own id, URL
   or token, and its own grants. Don't share one connection between audiences
   that may see different data.
+
+## Where secrets live
+
+Keep three kinds of secret apart. With Bitwarden Secrets Manager, which
+Boneyard uses, that means separate projects and a separate machine account for
+whoever installs servers:
+
+| Secret | Store it in | Who can read it |
+| --- | --- | --- |
+| Connection token (Boneyard to your server) | An integration-tokens project that Boneyard's admin marks as a System core project | Boneyard (read and write, because it generates tokens) and the server operator (read) |
+| Backend credentials (your server to its backend: API keys, certificates, service-account passwords) | An integration-credentials project | The server operator only, never Boneyard |
+| Boneyard's own secrets | Boneyard's own System core project | Boneyard only |
+
+- Boneyard's machine account needs write access to the integration-tokens
+  project, or generating a token fails.
+- The server operator's machine account token stays where servers are
+  installed, for example a root-only file on the host. It never goes into
+  Boneyard, the repository or chat.
+- Windows services that use a gMSA or another built-in identity may need no
+  backend credential at all.
+
+The Boneyard operator's runbook has the full setup, including the exact
+permissions and how to rotate a secret.
+
