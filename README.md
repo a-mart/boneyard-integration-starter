@@ -60,3 +60,7 @@ npm run kit -- check https://your-server.example.com/mcp --token-file ./connecti
 | `MAX_BODY_BYTES` | `1048576` | Request body cap |
 | `ALLOWED_ORIGINS` | empty | Browser origins allowed (the gateway sends none) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
+
+## License
+
+MIT. See [LICENSE](LICENSE).
