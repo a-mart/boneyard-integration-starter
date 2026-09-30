@@ -14,6 +14,18 @@ services:
       TRUST_CALLER_CONTEXT: "false"
       LOG_LEVEL: info
     secrets: [connection_token, backend_api_key]
+    # Data the server reads from disk (a file share mounted on the host, see
+    # docs/deploying.md): bind-mount each published folder read-only, and
+    # publish the container paths, e.g. FILE_ROOTS: "policies=/data/policies".
+    # volumes:
+    #   - type: bind
+    #     source: /mnt/shares/policies
+    #     target: /data/policies
+    #     read_only: true
+    # boneyard-integrations makes the server reachable by the gateway only; it
+    # has no egress. Add "backend" only if the server calls out to an API,
+    # database or file server. A server that only reads bind-mounted folders
+    # needs neither the network nor the backend credential.
     networks: [boneyard-integrations, backend]
 
 secrets:

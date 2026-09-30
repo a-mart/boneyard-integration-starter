@@ -26,12 +26,15 @@ network and give it **no published ports**: it is then reachable only by the
 gateway, as `http://<service-name>:<port>/mcp`.
 
 The network is **internal**, so it has no route out of the host. If your server
-calls a backend (an API, a database, a file server), also attach it to a
-network of your own that has egress, as `compose.example.yml` does with
-`backend`. Never create `boneyard-integrations` yourself; Boneyard owns it.
+calls a backend over the network (an API, a database, an SMB server it
+connects to itself), also attach it to a network of your own that has egress,
+as `compose.example.yml` does with `backend`. That second network is
+**optional**: a server that only reads folders bind-mounted from the host
+makes no outbound connections, so drop `backend` and keep it on
+`boneyard-integrations` alone. Never create `boneyard-integrations` yourself;
+Boneyard owns it.
 
 ```sh
-
 mkdir -p secrets
 openssl rand -base64 48 | tr -d '\n' > secrets/connection-token   # or paste the token Boneyard generated
 printf '%s' "$YOUR_BACKEND_KEY" > secrets/backend-api-key
@@ -54,6 +57,45 @@ Notes:
   reproducible builds, and rebuild regularly for security updates.
 - To check the server from the host, run a throwaway container on the same
   network, or temporarily publish the port on `127.0.0.1` only.
+
+### File shares from Docker on Linux
+
+To serve folders from an SMB (Windows) share, mount the share **on the host**
+and bind-mount the folders into the container read-only. The container then
+needs no SMB credentials, no extra capabilities and no egress network.
+
+1. Create a domain account (or a gMSA the Linux host can use through a
+   keytab) with **read-only** share and NTFS permissions on exactly the
+   folders to publish. The ACLs are the real boundary.
+2. Store its credentials on the host, readable by root only:
+
+   ```sh
+   sudo install -d -m 0700 /etc/file-reader
+   sudo install -m 0600 /dev/null /etc/file-reader/cifs-credentials
+   sudoedit /etc/file-reader/cifs-credentials   # username=svc-files, password=..., domain=EXAMPLE
+   ```
+
+3. Mount the share read-only in `/etc/fstab`, owned by the container's user
+   (uid 1000 is `node` in the image):
+
+   ```
+   //files.example.internal/policies  /mnt/shares/policies  cifs  ro,credentials=/etc/file-reader/cifs-credentials,uid=1000,gid=1000,file_mode=0444,dir_mode=0555,vers=3.1.1,seal,nosuid,nodev,noexec,_netdev  0  0
+   ```
+
+   `seal` encrypts SMB traffic. With Kerberos, use `sec=krb5` and a keytab
+   instead of a stored password.
+4. Bind-mount each folder into the container with `read_only: true` (the
+   commented `volumes` block in `compose.example.yml`) and publish the
+   container paths, such as `FILE_ROOTS=policies=/data/policies`.
+
+Don't use a Docker `cifs` volume (`driver_opts: { type: cifs, o: "username=...,password=..." }`):
+the password ends up in the Compose file and in `docker volume inspect`.
+
+Links that the SMB server follows itself (Windows symbolic links evaluated on
+the server, DFS referrals) are invisible to `realpath` on the client, so your
+containment check can't see them. Keep the account's permissions tight, and
+[refuse links out of the root](security.md#symlinks-and-other-links) that the
+client does see.
 
 ## Elsewhere over HTTPS
 
@@ -116,6 +158,37 @@ Then:
   address.
 - Send the service's stdout to a file or to the Windows Event Log through the
   wrapper, so you keep the structured audit lines.
+
+### File shares from a Windows service
+
+- **Use UNC paths, never mapped drives.** Drive letters are mapped per logon
+  session. A service runs in its own session under its own account, so it
+  doesn't see `P:` mapped by a user, and mapping drives from a service
+  startup script is fragile. Publish
+  `policies=\\files.example.internal\policies` instead of `policies=P:\`.
+- **Run as a gMSA.** Windows rotates its password, and nobody knows it:
+
+  ```powershell
+  # Once per domain, by a domain admin (keys take up to 10 hours to replicate):
+  Add-KdsRootKey -EffectiveImmediately
+  New-ADServiceAccount -Name svc-files -DNSHostName svc-files.example.internal -PrincipalsAllowedToRetrieveManagedPassword "FileReaderHosts"
+  # On the server host, a member of FileReaderHosts:
+  Install-ADServiceAccount -Identity svc-files
+  Test-ADServiceAccount -Identity svc-files
+  ```
+
+  Configure the service to log on as `DOMAIN\svc-files$` with an empty
+  password (`sc.exe config <service> obj= "DOMAIN\svc-files$"`, or the
+  wrapper's service-account setting), and make sure the account has the
+  *Log on as a service* right.
+- **Grant read only.** Give `DOMAIN\svc-files$` *Read* on the share and
+  *Read & execute* on exactly the published folders. Deny nothing else by
+  hand; just don't grant it.
+- **Resolve roots the way the server sees them.** `realpath` on a DFS path
+  returns the namespace path, so publish roots in the same form, and include
+  a DFS link in your containment tests if you use DFS.
+- The server's own files (the repository, `secrets`) stay on a local disk
+  with an ACL for the service account, as above.
 
 Servers written in C# (ASP.NET Core with the official MCP C# SDK) run the same
 way through `UseWindowsService()`. The contract doesn't change.
