@@ -8,12 +8,16 @@ export type RawCallAnswer = { readonly status: number; readonly body: unknown } 
 
 export type RawCallHandler = (name: string, args: Record<string, unknown>, headers: IncomingMessage["headers"]) => RawCallAnswer;
 
+export type RawTaskHandler = (method: string, params: Record<string, unknown>) => RawCallAnswer;
+
 export interface RawServerOptions {
   readonly token: string;
   readonly port?: number;
   readonly checkToken?: boolean;
   readonly protocolVersion?: string;
+  readonly capabilities?: Record<string, unknown>;
   readonly tools: readonly Record<string, unknown>[];
+  readonly onTaskRequest?: RawTaskHandler;
   readonly onCall: RawCallHandler;
   readonly onRequest?: (headers: IncomingMessage["headers"]) => number | null;
 }
@@ -37,21 +41,31 @@ function rpcResult(id: string | number | undefined, result: unknown): unknown {
   return { jsonrpc: "2.0", id: id ?? null, result };
 }
 
+function reply(response: ServerResponse, id: string | number, answer: RawCallAnswer): void {
+  if ("rpcError" in answer) return send(response, 200, { jsonrpc: "2.0", id, error: answer.rpcError });
+  return send(response, answer.status, answer.status === 200 ? rpcResult(id, answer.body) : answer.body);
+}
+
+function isTaskRequest(method: string, params: Record<string, unknown> | undefined): boolean {
+  return method.startsWith("tasks/") || (method === "tools/call" && params?.["task"] !== undefined);
+}
+
 async function handle(request: IncomingMessage, response: ServerResponse, options: RawServerOptions): Promise<void> {
   if (options.checkToken !== false && request.headers.authorization !== `Bearer ${options.token}`) return send(response, 401, { error: "unauthorized" });
+  if (request.method !== "POST") return send(response, 405, { error: "method_not_allowed" });
   const forced = options.onRequest?.(request.headers) ?? null;
   if (forced !== null) return send(response, forced, { error: "forced" });
   const message = RpcRequestSchema.parse(JSON.parse(await readBody(request)));
   if (message.id === undefined) return send(response, 202, undefined);
   if (message.method === "initialize") {
-    return send(response, 200, rpcResult(message.id, { protocolVersion: options.protocolVersion ?? "2025-11-25", capabilities: { tools: {} }, serverInfo: { name: "raw-server", version: "0.0.1" } }));
+    const capabilities = options.capabilities ?? { tools: {} };
+    return send(response, 200, rpcResult(message.id, { protocolVersion: options.protocolVersion ?? "2025-11-25", capabilities, serverInfo: { name: "raw-server", version: "0.0.1" } }));
   }
   if (message.method === "tools/list") return send(response, 200, rpcResult(message.id, { tools: options.tools }));
+  if (options.onTaskRequest !== undefined && isTaskRequest(message.method, message.params)) return reply(response, message.id, options.onTaskRequest(message.method, message.params ?? {}));
   if (message.method === "tools/call") {
     const params = z.object({ name: z.string(), arguments: z.record(z.string(), z.unknown()).default({}) }).parse(message.params);
-    const answer = options.onCall(params.name, params.arguments, request.headers);
-    if ("rpcError" in answer) return send(response, 200, { jsonrpc: "2.0", id: message.id, error: answer.rpcError });
-    return send(response, answer.status, answer.status === 200 ? rpcResult(message.id, answer.body) : answer.body);
+    return reply(response, message.id, options.onCall(params.name, params.arguments, request.headers));
   }
   return send(response, 200, { jsonrpc: "2.0", id: message.id, error: { code: -32601, message: "Method not found" } });
 }

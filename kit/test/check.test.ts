@@ -5,6 +5,7 @@ import { runChecks, type CheckOptions } from "../check.js";
 import type { CheckStatus, Report } from "../report.js";
 import { createTarget } from "../target.js";
 import { startRawServer, type RawServerOptions } from "./raw-server.js";
+import { longRunningCall, rawTasks, TASK_CAPABILITIES, TASK_TOOL, WAIT_TOOL, waitAnswer } from "./long-running.js";
 import { TEST_TOKEN, textAnswer, WELL_BEHAVED_TOOLS, wellBehavedCall } from "./well-behaved.js";
 
 const CANARY = "kit-test-canary-value-7f3a9c";
@@ -27,7 +28,7 @@ test("a well-behaved server passes every check in safe and fake modes", async ()
   for (const fake of [false, true]) {
     const report = await checkRaw({}, { fake });
     assert.deepEqual(report.checks.filter((entry) => entry.status !== "pass" && entry.status !== "skip"), []);
-    assert.equal(report.checks.filter((entry) => entry.status === "skip").length, fake ? 0 : 6);
+    assert.equal(report.checks.filter((entry) => entry.status === "skip").length, fake ? 0 : 8);
   }
 });
 
@@ -125,4 +126,49 @@ test("a call the fixtures mark as a refusal fails the check when it succeeds", a
 test("an expected error that succeeds is only a warning", async () => {
   const report = await checkRaw({}, { fixtures: { tools: { status_get: [{ arguments: { item: "missing" }, expect: "error" }] } } });
   assert.equal(statusOf(report, "calls.fixtures"), "warn");
+});
+
+const longRunning = (options: Partial<RawServerOptions> = {}): Partial<RawServerOptions> => ({
+  tools: [...WELL_BEHAVED_TOOLS, WAIT_TOOL, TASK_TOOL],
+  capabilities: TASK_CAPABILITIES,
+  onCall: longRunningCall(),
+  onTaskRequest: rawTasks(),
+  ...options,
+});
+
+test("a server with a wait tool and a task tool that behave as Boneyard follow-ups expect passes every check", async () => {
+  const report = await checkRaw(longRunning());
+  assert.deepEqual(report.checks.filter((entry) => entry.status !== "pass"), []);
+  assert.match(report.checks.find((entry) => entry.id === "follow.task-runs")?.summary ?? "", /1 task tool ran to a result/u);
+});
+
+test("a wait tool that is not read-only, or that can wait past the gateway's call limit, gets a warning", async () => {
+  const careless = { ...WAIT_TOOL, annotations: { readOnlyHint: false, destructiveHint: false }, inputSchema: { type: "object", properties: { timeoutSeconds: { type: "integer", maximum: 300, description: "Seconds." } } } };
+  const report = await checkRaw(longRunning({ tools: [...WELL_BEHAVED_TOOLS, careless] }), { fake: false });
+  assert.equal(statusOf(report, "follow.wait-tools"), "warn");
+});
+
+test("a wait that reports running out as an error, or never says timedOut, fails the wait-call check", async () => {
+  const asError = await checkRaw(longRunning({ onCall: longRunningCall(() => waitAnswer(true, true)) }));
+  assert.equal(statusOf(asError, "follow.wait-calls"), "fail");
+  const silent = await checkRaw(longRunning({ onCall: longRunningCall(() => textAnswer("still running")) }));
+  assert.equal(statusOf(silent, "follow.wait-calls"), "fail");
+});
+
+test("a wait tool whose fixtures never run out gets a warning, so the convention is actually exercised", async () => {
+  const report = await checkRaw(longRunning({ onCall: longRunningCall(() => waitAnswer(false)) }));
+  assert.equal(statusOf(report, "follow.wait-calls"), "warn");
+});
+
+test("task support without the tasks capability fails, and a tool that requires tasks gets a warning", async () => {
+  const undeclared = await checkRaw(longRunning({ capabilities: { tools: {} } }), { fake: false });
+  assert.equal(statusOf(undeclared, "follow.tasks"), "fail");
+  const required = await checkRaw(longRunning({ tools: [...WELL_BEHAVED_TOOLS, { ...TASK_TOOL, execution: { taskSupport: "required" } }] }), { fake: false });
+  assert.equal(statusOf(required, "follow.tasks"), "warn");
+});
+
+test("a task server that ignores tasks/cancel fails the task-run check", async () => {
+  const report = await checkRaw(longRunning({ onTaskRequest: rawTasks({ ignoresCancel: true }) }));
+  assert.equal(statusOf(report, "follow.task-runs"), "fail");
+  assert.match(report.checks.find((entry) => entry.id === "follow.task-runs")?.details.join("\n") ?? "", /after tasks\/cancel the task is working/u);
 });

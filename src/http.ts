@@ -7,12 +7,17 @@ import { createTokenVerifier } from "./auth.js";
 import type { TicketBackend } from "./backend/tickets.js";
 import { parseCallerContext } from "./caller-context.js";
 import type { Logger } from "./log.js";
+import { respond } from "./respond.js";
+import { serveTasks } from "./tasks/endpoint.js";
+import type { ConnectionTaskStore } from "./tasks/task-store.js";
+import type { TaskToolRegistration } from "./tasks/tickets-export.js";
 import type { ToolContext, ToolRegistration } from "./tools/context.js";
 
 export const SERVER_INFO = Object.freeze({ name: "example-tickets", version: "0.1.0" });
 
 export interface AppOptions {
   readonly mcpPath: string;
+  readonly tasksPath: string;
   readonly connectionToken: string;
   readonly trustCallerContext: boolean;
   readonly allowedOrigins: readonly string[];
@@ -21,11 +26,9 @@ export interface AppOptions {
   readonly backend: TicketBackend;
   readonly backendPrincipal: string;
   readonly tools: readonly ToolRegistration[];
+  readonly tasks: ConnectionTaskStore;
+  readonly taskTools: readonly TaskToolRegistration[];
   readonly log: Logger;
-}
-
-function respond(response: ServerResponse, status: number, body: Record<string, string>, headers: Record<string, string> = {}): void {
-  response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store", ...headers }).end(JSON.stringify(body));
 }
 
 function header(request: IncomingMessage, name: string): string | undefined {
@@ -43,14 +46,18 @@ export function buildMcpServer(context: ToolContext, tools: readonly ToolRegistr
   return server;
 }
 
-async function serveMcp(request: IncomingMessage, response: ServerResponse, options: AppOptions): Promise<void> {
-  const context: ToolContext = {
+function toolContext(request: IncomingMessage, options: AppOptions): ToolContext {
+  return {
     backend: options.backend,
     backendPrincipal: options.backendPrincipal,
     caller: parseCallerContext((name) => header(request, name), options.trustCallerContext),
     log: options.log,
     maxResultBytes: options.maxResultBytes,
   };
+}
+
+async function serveMcp(request: IncomingMessage, response: ServerResponse, options: AppOptions): Promise<void> {
+  const context = toolContext(request, options);
   const handler = createMcpHandler(() => buildMcpServer(context, options.tools), {
     maxRequestBodySize: options.maxBodyBytes,
     onerror: (error) => options.log.warn("mcp_request_rejected", { errorName: error.name }),
@@ -65,7 +72,7 @@ async function serveMcp(request: IncomingMessage, response: ServerResponse, opti
 async function route(request: IncomingMessage, response: ServerResponse, options: AppOptions, verify: (value: string | undefined) => boolean): Promise<void> {
   const path = pathOf(request);
   if (request.method === "GET" && path === "/healthz") return respond(response, 200, { status: "ok" });
-  if (path !== options.mcpPath) return respond(response, 404, { error: "not_found" });
+  if (path !== options.mcpPath && path !== options.tasksPath) return respond(response, 404, { error: "not_found" });
   const origin = header(request, "origin");
   if (origin !== undefined && !options.allowedOrigins.includes(origin)) return respond(response, 403, { error: "origin_not_allowed" });
   if (!verify(header(request, "authorization"))) {
@@ -73,6 +80,9 @@ async function route(request: IncomingMessage, response: ServerResponse, options
     return respond(response, 401, { error: "unauthorized" }, { "www-authenticate": "Bearer" });
   }
   if (request.method !== "POST") return respond(response, 405, { error: "method_not_allowed" }, { allow: "POST" });
+  if (path === options.tasksPath) {
+    return serveTasks(request, response, { ...toolContext(request, options), tasks: options.tasks }, { maxBodyBytes: options.maxBodyBytes, tools: options.taskTools });
+  }
   return serveMcp(request, response, options);
 }
 

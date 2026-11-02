@@ -10,11 +10,16 @@ import { containsSecret } from "./secrets.js";
 export interface ExecutedCall {
   readonly call: PlannedCall;
   readonly outcome: CallOutcome;
+  readonly durationMs: number;
 }
 
 export async function executePlan(session: ClientSession, tools: readonly Tool[], fixtures: Fixtures): Promise<ExecutedCall[]> {
   const executed: ExecutedCall[] = [];
-  for (const call of planCalls(tools, fixtures)) executed.push({ call, outcome: await callTool(session, call.tool, call.arguments) });
+  for (const call of planCalls(tools, fixtures)) {
+    const started = performance.now();
+    const outcome = await callTool(session, call.tool, call.arguments);
+    executed.push({ call, outcome, durationMs: Math.round(performance.now() - started) });
+  }
   return executed;
 }
 

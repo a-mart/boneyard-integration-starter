@@ -38,7 +38,8 @@ the agent's own credentials.
   acceptable only on the same host's private Docker network (see
   [deploying.md](deploying.md)).
 - Answer within 60 seconds. After that, the gateway cancels the call and
-  reports it to the agent as timed out.
+  reports it to the agent as timed out. For work that takes longer, see
+  [section 9](#9-long-running-tools).
 
 ## 2. Protocol versions
 
@@ -48,7 +49,7 @@ version you both support.
 | Version | Status |
 |---|---|
 | `2026-07-28` | Preferred. Stateless by design; the reference server uses it. |
-| `2025-11-25` | Supported. |
+| `2025-11-25` | Supported. The only version with MCP Tasks ([section 9](#9-long-running-tools)). |
 | `2025-06-18` | Supported. |
 | `2025-03-26` | Supported (first version with Streamable HTTP). |
 | `2024-11-05` and older | Not supported (HTTP+SSE transport). |
@@ -219,10 +220,32 @@ that this review is expected, and keep tool metadata stable across replicas.
   give agents a "temporarily unavailable" error, and other connections keep
   working.
 
+## 9. Long-running tools
+
+An agent can wait for a long job with a Boneyard **follow-up**: Boneyard calls
+one of its tools in the background, in **Allow** mode only, and wakes the agent
+when the job ends. [long-running.md](long-running.md) explains it in full.
+
+- A **wait tool** waits at most **50 seconds** per call and, while the work
+  is not done, answers normally (not as an error) with
+  `structuredContent.timedOut: true`. Boneyard calls it again; the first answer
+  without `timedOut: true` is the result. It SHOULD declare `timedOut` in its
+  `outputSchema` and MUST be safe to repeat: mark it `readOnlyHint: true`.
+- A tool MAY support **MCP Tasks** instead, on an endpoint whose newest
+  protocol is `2025-11-25`, with the `tasks.requests.tools.call` capability and
+  `execution.taskSupport: "optional"`. Boneyard starts a follow-up's call once
+  as a task, checks it with `tasks/get`, collects `tasks/result`, and sends
+  `tasks/cancel` when the follow-up is stopped. Tasks SHOULD be bound to the
+  connection's credential rather than the MCP session, because Boneyard checks
+  a task from a new session after its gateway restarts.
+- When a call's outcome is unknown (a timeout, a dropped connection, a task
+  that is gone), Boneyard runs the tool again only if it is marked
+  `readOnlyHint: true` or `idempotentHint: true`.
+
 ## Conformance
 
 `kit check <url> --token-file <file>` runs the checks that are safe against
 production: discovery, authentication and the tool list. Add `--fake` against
 a server running on test data (a fake backend or synthetic fixture roots) to
-call tools and test canaries, expected refusals, result sizes, errors and
-caller-context handling. See [testing.md](testing.md).
+call tools and test canaries, expected refusals, result sizes, errors,
+caller-context handling, wait tools and MCP tasks. See [testing.md](testing.md).

@@ -19,6 +19,7 @@ export const LocalConfigSchema = z
     url: z.string().min(1),
     canaryFiles: z.array(z.string().min(1)).default([]),
     fixtures: z.string().min(1).optional(),
+    extraTargets: z.array(z.object({ url: z.string().min(1), fixtures: z.string().min(1).optional() }).strict()).max(10).default([]),
     trustsCallerContext: z.boolean().default(false),
     startupTimeoutMs: z.number().int().min(1000).max(120_000).default(30_000),
   })
@@ -103,14 +104,16 @@ export async function runLocalCheck(config: LocalConfig, write: (text: string) =
     const url = expand(config.url, places);
     await waitForServer(url, child, config.startupTimeoutMs);
     const token = readSecretFile(expand("{token_file}", places), "Token");
-    const target = createTarget({ url, token, authHeader: "Authorization", extraHeaders: {} });
     const canaries = config.canaryFiles.map((path) => readSecretFile(expand(path, places), "Canary"));
-    const fixtures = loadFixtures(config.fixtures);
     ok = true;
-    for (const fake of [false, true]) {
-      const report = await runChecks(target, { fake, canaries, fixtures, trustsCallerContext: config.trustsCallerContext });
-      write(`${formatReport(report)}\n\n`);
-      ok &&= passed(report);
+    for (const endpoint of [{ url: config.url, fixtures: config.fixtures }, ...config.extraTargets]) {
+      const target = createTarget({ url: expand(endpoint.url, places), token, authHeader: "Authorization", extraHeaders: {} });
+      const fixtures = loadFixtures(endpoint.fixtures);
+      for (const fake of [false, true]) {
+        const report = await runChecks(target, { fake, canaries, fixtures, trustsCallerContext: config.trustsCallerContext });
+        write(`${formatReport(report)}\n\n`);
+        ok &&= passed(report);
+      }
     }
   } finally {
     await stop(child);

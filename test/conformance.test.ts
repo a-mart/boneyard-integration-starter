@@ -18,7 +18,15 @@ test("the reference server passes every kit check in safe and fake modes", async
   for (const fake of [false, true]) {
     const report = await check(server.url, { fake });
     assert.deepEqual(report.checks.filter((entry) => entry.status !== "pass" && entry.status !== "skip"), []);
-    assert.equal(report.checks.filter((entry) => entry.status === "skip").length, fake ? 0 : 6);
+    assert.equal(report.checks.filter((entry) => entry.status === "skip").length, fake ? 0 : 8);
+  }
+});
+
+test("the reference tasks endpoint passes every kit check, including running, finding and cancelling its task", async () => {
+  const server = await startTestServer({ FAKE_EXPORT_DELAY_MS: "300" });
+  for (const fake of [false, true]) {
+    const report = await check(server.tasksUrl, { fake, fixtures: loadFixtures("kit.tasks.fixtures.json") });
+    assert.deepEqual(report.checks.filter((entry) => entry.status !== "pass" && entry.status !== "skip"), []);
   }
 });
 

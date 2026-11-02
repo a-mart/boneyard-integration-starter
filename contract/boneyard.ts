@@ -3,6 +3,12 @@ export const CONTRACT_VERSION = "1";
 export const PREFERRED_PROTOCOL_VERSION = "2026-07-28";
 export const SUPPORTED_PROTOCOL_VERSIONS: readonly string[] = ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"];
 
+export const CALL_LIMIT_SECONDS = 60;
+export const MAX_WAIT_SECONDS = 50;
+export const WAIT_RESULT_FIELD = "timedOut";
+export const TASK_PROTOCOL_VERSION = "2025-11-25";
+export const MAX_TASK_TTL_MS = 14_400_000;
+
 export const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.-]{1,128}$/u;
 export const PORTABLE_TOOL_NAME_PATTERN = /^[a-z0-9_]{1,32}$/u;
 export const MAX_TOOLS = 500;

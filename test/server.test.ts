@@ -41,7 +41,8 @@ test("tools are listed with annotations that match what they do", async () => {
   const { tools } = await client.listTools();
   await client.close();
   const byName = new Map(tools.map((tool) => [tool.name, tool.annotations]));
-  assert.deepEqual([...byName.keys()].sort(), ["ticket_add_comment", "tickets_search"]);
+  assert.deepEqual([...byName.keys()].sort(), ["ticket_add_comment", "ticket_wait_for_update", "tickets_search"]);
+  assert.equal(byName.get("ticket_wait_for_update")?.readOnlyHint, true);
   assert.equal(byName.get("tickets_search")?.readOnlyHint, true);
   assert.equal(byName.get("ticket_add_comment")?.readOnlyHint, false);
   assert.equal(byName.get("ticket_add_comment")?.destructiveHint, false);
@@ -114,6 +115,6 @@ test("the server speaks both the 2026-07-28 and 2025-11-25 protocol eras", async
   const legacy = new Client({ name: "legacy", version: "0" });
   await legacy.connect(new StreamableHTTPClientTransport(new URL(server.url), { requestInit: { headers: { authorization: `Bearer ${TEST_TOKEN}` } } }));
   assert.equal(legacy.getNegotiatedProtocolVersion(), "2025-11-25");
-  assert.equal((await legacy.listTools()).tools.length, 2);
+  assert.equal((await legacy.listTools()).tools.length, 3);
   await legacy.close();
 });

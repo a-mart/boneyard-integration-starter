@@ -12,12 +12,15 @@ change: everything Boneyard needs is in the [contract](docs/contract.md).
 | `docs/contract.md` | **The rules.** Read it first; it applies in any language |
 | `contract/boneyard.ts` | The contract's constants (versions, limits, header names, classification) |
 | `src/` | Reference server: TypeScript, official MCP SDK, stateless |
-| `src/tools/*.ts` | One file per tool. Copy `tickets-search.ts` (read) or `ticket-add-comment.ts` (write) |
+| `src/tools/*.ts` | One file per tool. Copy `tickets-search.ts` (read), `ticket-add-comment.ts` (write) or `ticket-wait-for-update.ts` (wait tool for long work) |
+| `src/tasks/` | Optional second endpoint, `/mcp-tasks`, for tools that run as MCP tasks (protocol 2025-11-25, v1 SDK). Copy `tickets-export.ts` |
+| `docs/long-running.md` | **How Boneyard follow-ups wait on long work**: wait tools, MCP Tasks, retries |
 | `src/backend/` | The backend interface and an in-memory **fake** backend |
 | `docs/backends.md` | Backends without an API key (file shares, mounted folders): fixtures, canaries, configuration |
 | `kit/` | `kit check` (conformance) and `kit dev` (mock gateway). Works against any URL; imports nothing from `src/` |
 | `kit.config.json` | How `npm run kit:check` starts your server, and which canaries and fixtures it uses |
 | `kit.fixtures.json` | Tool arguments `kit check --fake` uses, including expected refusals |
+| `kit.tasks.fixtures.json` | The same for the `/mcp-tasks` endpoint |
 | `server.json` | MCP Registry entry that Boneyard imports to render the connection form |
 | `test/` | The reference server's tests. Replace them with tests for your tools |
 | `kit/test/` | The kit's own tests, against self-contained servers in `kit/test/`. Keep them unchanged |
@@ -79,7 +82,15 @@ npm run kit -- dev <url> --token-file <file> --exec tools --exec 'call <tool> {"
     (roots, projects, mailboxes) never appear in names, descriptions or
     schemas; a change would send the tools back to review. See
     [backends.md](docs/backends.md#configuration-the-admin-sets).
-14. **Nothing real in the repository.** No real hostnames, credentials,
+14. **Long work is a wait tool or a task, never a call that runs past 60 s.**
+    A wait tool waits at most 50 seconds and answers `timedOut: true`
+    (not an error) while the work goes on; it is read-only. A task tool
+    lives on an endpoint whose newest protocol is `2025-11-25`, uses
+    `taskSupport: "optional"`, and keeps tasks findable from any session.
+    Boneyard follows only Allow tools and retries unknown outcomes only for
+    `readOnlyHint` or `idempotentHint` tools. See
+    [long-running.md](docs/long-running.md).
+15. **Nothing real in the repository.** No real hostnames, credentials,
     customer data or PHI in code, fixtures, tests or docs. Use a fake
     backend or synthetic fixture roots.
 
@@ -97,7 +108,9 @@ npm run kit -- dev <url> --token-file <file> --exec tools --exec 'call <tool> {"
 2. Write one file per tool in `src/tools/`, register it in
    `src/tools/index.ts`, and wrap the handler in
    `audited(tool, context, run, { resource })`, passing the identifier of
-   what the call touched so the audit log carries its hash.
+   what the call touched so the audit log carries its hash. For work that
+   takes longer than a call, add a wait tool, or a task tool in
+   `src/tasks/` ([long-running.md](docs/long-running.md)).
 3. Put the real backend client behind the same interface. Pick it with
    `BACKEND=<kind>` in `src/config.ts`, keep `fake` as the default for
    development, and read credentials from `*_FILE` variables. Parse admin
@@ -115,6 +128,7 @@ Every place the ticket example shows up, and what to do with it:
 |---|---|
 | `src/backend/tickets.ts`, `src/backend/fake-tickets.ts` | Your backend interface and its fake (or fixture roots) |
 | `src/tools/*.ts`, `src/tools/index.ts` | Your tools |
+| `src/tasks/tickets-export.ts`, `src/tasks/endpoint.ts` | Your task tools and `TASK_SERVER_INFO`, or delete `src/tasks/` ([long-running.md](docs/long-running.md#if-you-dont-need-it)) |
 | `src/tools/context.ts`, `src/http.ts` | The `TicketBackend` type in `ToolContext` and `AppOptions` |
 | `src/http.ts` | `SERVER_INFO` name and version |
 | `src/server.ts` | The backend factory and `backendPrincipal` (the account name the audit log shows) |
@@ -123,7 +137,8 @@ Every place the ticket example shows up, and what to do with it:
 | `test/helpers.ts` | The environment `startTestServer` passes (`BACKEND_API_KEY`) and `TEST_BACKEND_KEY` |
 | `test/server.test.ts` | Tool names, arguments and expected results: success, invalid input, not found or backend failure, bounded output, audit line |
 | `test/conformance.test.ts` | The canary it passes (`TEST_BACKEND_KEY` or your out-of-scope file) |
-| `kit.fixtures.json` | Arguments for every tool, the largest realistic result, expected errors and refusals |
+| `kit.fixtures.json` | Arguments for every tool, the largest realistic result, expected errors and refusals; for a wait tool, one call that runs out |
+| `kit.tasks.fixtures.json` | The same for task tools |
 | `kit.config.json` | Command, environment, canary files |
 | `fixtures/` (new, for file-like backends) | Synthetic roots and the out-of-scope canary |
 | `server.json` | `name`, `title`, `description`, `version`, `url`, headers |
@@ -172,3 +187,7 @@ language's official MCP SDK, and point `npm run kit -- check` at it.
 | Writing tests against a real backend | Real data in CI logs | Use a fake backend or synthetic fixture roots; `kit check --fake` |
 | Listing configured roots in a schema `enum` | Every configuration change sends the tool back to review | Static schema; a read tool lists the roots |
 | Mapped drive letters in a Windows service | The service can't see them | UNC paths |
+| A tool that runs for minutes in one call | The gateway cancels it at 60 s and the agent sees a timeout | A wait tool (at most 50 s, `timedOut: true`) or an MCP task |
+| A wait tool that answers `isError` while still waiting | The follow-up ends as a failure | Answer normally with `timedOut: true` |
+| Task tools on the `2026-07-28` endpoint | Boneyard never runs them as tasks; that protocol has none | Serve them on an endpoint whose newest protocol is `2025-11-25` |
+| A task store keyed by MCP session | After a gateway restart the task is "lost" | Key tasks to the connection, as `ConnectionTaskStore` does |

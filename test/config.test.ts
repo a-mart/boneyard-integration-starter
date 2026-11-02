@@ -33,3 +33,8 @@ test("config refuses a short connection token without printing it", () => {
 test("config rejects an invalid trust flag", () => {
   assert.throws(() => loadConfig({ CONNECTION_TOKEN: token, BACKEND_API_KEY: key, TRUST_CALLER_CONTEXT: "yes" }), /TRUST_CALLER_CONTEXT/u);
 });
+
+test("config serves long-running task tools on their own path, which must differ from the main one", () => {
+  assert.equal(loadConfig({ CONNECTION_TOKEN: token, BACKEND_API_KEY: key }).tasksPath, "/mcp-tasks");
+  assert.throws(() => loadConfig({ CONNECTION_TOKEN: token, BACKEND_API_KEY: key, MCP_TASKS_PATH: "/mcp" }), /MCP_TASKS_PATH must differ/u);
+});

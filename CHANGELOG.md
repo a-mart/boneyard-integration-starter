@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Long-running tools for Boneyard follow-ups (`docs/long-running.md`, contract section 9): a wait tool,
+  `ticket_wait_for_update`, that waits at most 50 seconds and answers `timedOut: true` while nothing
+  changed; and an optional `/mcp-tasks` endpoint (protocol 2025-11-25, v1 SDK) whose `tickets_export`
+  runs as an MCP task, with tasks bound to the connection rather than the session. New contract
+  constants `MAX_WAIT_SECONDS`, `TASK_PROTOCOL_VERSION` and `MAX_TASK_TTL_MS`.
+- Kit checks `follow.wait-tools`, `follow.tasks` (safe) and `follow.wait-calls`, `follow.task-runs`
+  (fake). `kit.config.json` takes `extraTargets` to check more endpoints of one server.
 - The kit and its tests no longer depend on the example tools: `kit/test` uses self-contained servers,
   and `npm run kit:check` starts whatever `kit.config.json` describes. The reference server's own
   conformance test moved to `test/conformance.test.ts`.
