@@ -64,6 +64,11 @@ and any secrets the headers need.
 - **Rotating the token:** generate a new one, give it to the server owner, and
   save when they are ready. Calls fail with an authentication error until both
   sides match.
+- **Long-running tools:** agents can follow a tool in **Allow** mode to wait
+  for long work ([long-running.md](long-running.md)). A server that runs some
+  tools as MCP tasks serves them on their own endpoint (the reference server
+  uses `/mcp-tasks`); register that URL as a second connection with the same
+  token, review its tools and grant it like any other.
 - **Two audiences, one server:** add a second connection with its own id, URL
   or token, and its own grants. Don't share one connection between audiences
   that may see different data.

@@ -44,6 +44,10 @@ The flag is called `--fake` either way.
 | `secrets.canary` | fake | No tool result contains the token, the `X-Kit-Canary` header value, or any `--canary-file` value (raw, base64, hex or percent-encoded) |
 | `results.size` | fake | Every result is at most 256 KiB serialized |
 | `results.errors` | fake | Invalid arguments come back as `isError` results (a JSON-RPC error is a warning), and nothing fails at the transport level, including an unknown tool name |
+| `follow.wait-tools` | safe | Every wait tool (one whose `outputSchema` declares `timedOut`) is read-only and caps `timeoutSeconds` at 50 (or `timeoutMs` at 50000); otherwise a warning. See [long-running.md](long-running.md) |
+| `follow.tasks` | safe | Tools with `execution.taskSupport` come with the `tasks.requests.tools.call` capability (otherwise a failure), on `2025-11-25`, and use `optional` rather than `required` (otherwise a warning) |
+| `follow.wait-calls` | fake | Wait calls answer within 50 seconds with a boolean `timedOut`, never mark a wait that ran out as an error, and at least one fixture call per wait tool ran out (otherwise a warning) |
+| `follow.task-runs` | fake | Each task tool starts as a task, can be seen from a new session (otherwise a warning), ends with a result that holds no secret, and is `cancelled` after `tasks/cancel`; `tasks/get` on an unknown id is a JSON-RPC error |
 | `context.forged-ignored` | fake | Forged `Boneyard-*` values never appear in results. Skipped with `--trusts-caller-context` |
 | `context.malformed` | fake | Malformed `Boneyard-*` headers don't break a call |
 
@@ -79,6 +83,7 @@ language:
 | `url` | Where the server answers |
 | `canaryFiles` | Files whose content must never appear in a result (see [Canaries](#canaries)) |
 | `fixtures` | Optional fixtures file |
+| `extraTargets` | More endpoints of the same server to check, each `{ "url": ..., "fixtures": ... }`; the reference server lists its `/mcp-tasks` endpoint here |
 | `trustsCallerContext` | `true` if this configuration trusts `Boneyard-*` headers |
 | `startupTimeoutMs` | How long to wait for the server to answer (default 30000) |
 

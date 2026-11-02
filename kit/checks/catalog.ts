@@ -18,6 +18,7 @@ import { containsSecret } from "./secrets.js";
 export interface Discovery {
   readonly protocolVersion: string;
   readonly serverName: string;
+  readonly taskCalls: boolean;
   readonly tools: readonly Tool[];
 }
 
@@ -40,7 +41,8 @@ export async function discover(target: Target): Promise<{ readonly check: CheckR
     const supported = SUPPORTED_PROTOCOL_VERSIONS.includes(version);
     const summary = `Negotiated ${version} with ${serverName}; ${tools.length} tools.`;
     const details = supported ? [] : [`Supported versions: ${SUPPORTED_PROTOCOL_VERSIONS.join(", ")}.`];
-    return { check: result("discovery", "safe", supported ? "pass" : "fail", summary, details), discovery: { protocolVersion: version, serverName, tools } };
+    const taskCalls = session.client.getServerCapabilities()?.tasks?.requests?.tools?.call !== undefined;
+    return { check: result("discovery", "safe", supported ? "pass" : "fail", summary, details), discovery: { protocolVersion: version, serverName, taskCalls, tools } };
   } catch (error) {
     return { check: result("discovery", "safe", "fail", "Connected but tools/list failed.", [errorText(error)]), discovery: null };
   } finally {

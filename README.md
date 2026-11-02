@@ -7,8 +7,10 @@ Build an MCP server that plugs into [Boneyard](docs/concepts.md) as a
   rules for authentication, caller context, tool naming and annotations,
   errors and limits.
 - **A reference server** in TypeScript (Node 22, official MCP SDK, stateless
-  Streamable HTTP). It has two example tools, `tickets_search` (read) and
-  `ticket_add_comment` (write), backed by an in-repository fake.
+  Streamable HTTP). Its example tools are `tickets_search` (read),
+  `ticket_add_comment` (write) and `ticket_wait_for_update` (a wait tool for
+  long work), backed by an in-repository fake. A second endpoint, `/mcp-tasks`,
+  serves `tickets_export` as an MCP task. See [long-running.md](docs/long-running.md).
 - **The kit**: `kit check`, a conformance suite you can run against any server
   URL, and `kit dev`, a mock Boneyard gateway for trying tools as a given
   agent, person and channel.
@@ -39,6 +41,7 @@ npm run kit -- check https://your-server.example.com/mcp --token-file ./connecti
 | Page | For |
 |---|---|
 | [contract.md](docs/contract.md) | What your server must do (any language) |
+| [long-running.md](docs/long-running.md) | Long jobs: how Boneyard follow-ups wait (wait tools, MCP Tasks, retries) |
 | [concepts.md](docs/concepts.md) | Connections vs integrations, Off, Ask and Allow, what the admin sees |
 | [backends.md](docs/backends.md) | Backends without an API key (file shares, mounted folders), fixture roots, canaries, admin configuration |
 | [security.md](docs/security.md) | Secrets, least privilege, containment, prompt injection, audit, regulated data |
@@ -56,6 +59,8 @@ npm run kit -- check https://your-server.example.com/mcp --token-file ./connecti
 | `BACKEND` | `fake` | Backend implementation |
 | `TRUST_CALLER_CONTEXT` | `false` | Use `Boneyard-*` headers for attribution and logs |
 | `HOST` / `PORT` / `MCP_PATH` | `127.0.0.1` / `8750` / `/mcp` | Listener |
+| `MCP_TASKS_PATH` | `/mcp-tasks` | Endpoint for task tools (protocol 2025-11-25); register it as its own connection |
+| `FAKE_EXPORT_DELAY_MS` | `5000` | How long the fake backend takes to export tickets |
 | `MAX_RESULT_BYTES` | `65536` | Result bound per tool call (at most 262144) |
 | `MAX_BODY_BYTES` | `1048576` | Request body cap |
 | `ALLOWED_ORIGINS` | empty | Browser origins allowed (the gateway sends none) |

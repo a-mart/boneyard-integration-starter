@@ -40,7 +40,12 @@ const ListedToolSchema = z
     title: z.string().optional(),
     description: z.string().optional(),
     inputSchema: z.record(z.string(), z.unknown()),
-    annotations: z.object({ readOnlyHint: z.unknown().optional(), destructiveHint: z.unknown().optional() }).loose().optional(),
+    outputSchema: z.record(z.string(), z.unknown()).optional(),
+    annotations: z
+      .object({ readOnlyHint: z.unknown().optional(), destructiveHint: z.unknown().optional(), idempotentHint: z.unknown().optional() })
+      .loose()
+      .optional(),
+    execution: z.object({ taskSupport: z.unknown().optional() }).loose().optional(),
   })
   .loose();
 

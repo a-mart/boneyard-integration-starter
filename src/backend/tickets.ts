@@ -28,9 +28,15 @@ export interface NewComment {
   readonly author: string;
 }
 
+export interface ExportQuery {
+  readonly status: TicketStatus | null;
+}
+
 export interface TicketBackend {
   search(query: TicketQuery, signal: AbortSignal): Promise<{ readonly total: number; readonly tickets: readonly TicketSummary[] }>;
+  get(ticketId: string, signal: AbortSignal): Promise<TicketSummary>;
   addComment(comment: NewComment, signal: AbortSignal): Promise<TicketComment>;
+  exportTickets(query: ExportQuery, signal: AbortSignal): Promise<readonly TicketSummary[]>;
 }
 
 export type BackendErrorCode = "not_found" | "unauthorized" | "unavailable";

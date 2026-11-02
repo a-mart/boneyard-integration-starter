@@ -1,6 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 
-import { BackendError, type NewComment, type TicketBackend, type TicketComment, type TicketQuery, type TicketStatus, type TicketSummary } from "./tickets.js";
+import { BackendError, type ExportQuery, type NewComment, type TicketBackend, type TicketComment, type TicketQuery, type TicketStatus, type TicketSummary } from "./tickets.js";
 
 interface StoredTicket {
   readonly id: string;
@@ -38,6 +39,7 @@ function matches(ticket: StoredTicket, query: TicketQuery): boolean {
 
 export interface FakeTicketVendor {
   readonly acceptedKey: string;
+  readonly exportDelayMs: number;
   readonly tickets?: readonly StoredTicket[];
   readonly now?: () => Date;
 }
@@ -50,18 +52,34 @@ export function createFakeTicketBackend(vendor: FakeTicketVendor, presentedKey: 
     signal.throwIfAborted();
     if (!sameKey(presentedKey, vendor.acceptedKey)) throw new BackendError("unauthorized", "The ticket system rejected this server's credentials.");
   };
+  const find = (ticketId: string): StoredTicket => {
+    const ticket = tickets.find((candidate) => candidate.id === ticketId);
+    if (ticket === undefined) throw new BackendError("not_found", `Ticket ${ticketId} does not exist.`);
+    return ticket;
+  };
   return {
     async search(query, signal) {
       authorize(signal);
       const found = tickets.filter((ticket) => matches(ticket, query));
       return { total: found.length, tickets: found.slice(0, query.limit).map(summary) };
     },
+    async get(ticketId, signal) {
+      authorize(signal);
+      return summary(find(ticketId));
+    },
     async addComment(input: NewComment, signal) {
       authorize(signal);
-      if (!tickets.some((ticket) => ticket.id === input.ticketId)) throw new BackendError("not_found", `Ticket ${input.ticketId} does not exist.`);
+      const ticket = find(input.ticketId);
       const comment: TicketComment = { id: randomUUID(), ticketId: input.ticketId, author: input.author, body: input.body, createdAt: now().toISOString() };
       comments.push(comment);
+      tickets[tickets.indexOf(ticket)] = { ...ticket, updatedAt: comment.createdAt };
       return comment;
+    },
+    async exportTickets(query: ExportQuery, signal) {
+      authorize(signal);
+      await delay(vendor.exportDelayMs, undefined, { signal });
+      authorize(signal);
+      return tickets.filter((ticket) => query.status === null || ticket.status === query.status).map(summary);
     },
   };
 }

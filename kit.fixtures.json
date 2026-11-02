@@ -9,6 +9,11 @@
       { "arguments": { "ticketId": "T-1001", "body": "Replaced the duplex roller; please retest." } },
       { "arguments": { "ticketId": "T-99999", "body": "This ticket does not exist." }, "expect": "error" },
       { "arguments": { "ticketId": "T-1001/../T-1002", "body": "Path-like ids must never reach the backend." }, "expect": "refusal" }
+    ],
+    "ticket_wait_for_update": [
+      { "arguments": { "ticketId": "T-1003", "since": "2026-01-14T08:40:00Z", "timeoutSeconds": 1 }, "note": "Nothing changes, so the wait runs out and answers timedOut: true." },
+      { "arguments": { "ticketId": "T-1002", "since": "2026-01-01T00:00:00Z", "timeoutSeconds": 1 }, "note": "The ticket changed after since, so the wait answers at once." },
+      { "arguments": { "ticketId": "T-99999", "since": "2026-01-01T00:00:00Z", "timeoutSeconds": 1 }, "expect": "error" }
     ]
   }
 }

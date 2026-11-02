@@ -6,9 +6,11 @@
     "LOG_LEVEL": "warn",
     "CONNECTION_TOKEN_FILE": "{token_file}",
     "BACKEND": "fake",
-    "BACKEND_API_KEY_FILE": "{random_file:backend-api-key}"
+    "BACKEND_API_KEY_FILE": "{random_file:backend-api-key}",
+    "FAKE_EXPORT_DELAY_MS": "300"
   },
   "url": "http://127.0.0.1:{port}/mcp",
   "canaryFiles": ["{random_file:backend-api-key}"],
-  "fixtures": "kit.fixtures.json"
+  "fixtures": "kit.fixtures.json",
+  "extraTargets": [{ "url": "http://127.0.0.1:{port}/mcp-tasks", "fixtures": "kit.tasks.fixtures.json" }]
 }

@@ -19,6 +19,10 @@ export function result(id: string, scope: CheckScope, status: CheckStatus, summa
   return { id, scope, status, summary, details };
 }
 
+export function counted(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
 export function worst(statuses: readonly CheckStatus[]): CheckStatus {
   if (statuses.includes("fail")) return "fail";
   if (statuses.includes("warn")) return "warn";

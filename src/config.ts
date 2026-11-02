@@ -13,12 +13,14 @@ const EnvSchema = z.object({
   HOST: z.string().min(1).default("127.0.0.1"),
   PORT: z.coerce.number().int().min(0).max(65_535).default(8750),
   MCP_PATH: z.string().regex(/^\/[A-Za-z0-9/_-]*$/u).default("/mcp"),
+  MCP_TASKS_PATH: z.string().regex(/^\/[A-Za-z0-9/_-]*$/u).default("/mcp-tasks"),
   CONNECTION_TOKEN: z.string().optional(),
   CONNECTION_TOKEN_FILE: z.string().min(1).optional(),
   TRUST_CALLER_CONTEXT: flag,
   BACKEND: z.enum(["fake"]).default("fake"),
   BACKEND_API_KEY: z.string().optional(),
   BACKEND_API_KEY_FILE: z.string().min(1).optional(),
+  FAKE_EXPORT_DELAY_MS: z.coerce.number().int().min(0).max(600_000).default(5_000),
   MAX_RESULT_BYTES: z.coerce.number().int().min(1024).max(262_144).default(65_536),
   MAX_BODY_BYTES: z.coerce.number().int().min(1024).max(4_194_304).default(1_048_576),
   ALLOWED_ORIGINS: commaList,
@@ -31,9 +33,10 @@ export interface ServerConfig {
   readonly host: string;
   readonly port: number;
   readonly mcpPath: string;
+  readonly tasksPath: string;
   readonly connectionToken: string;
   readonly trustCallerContext: boolean;
-  readonly backend: { readonly kind: "fake"; readonly apiKey: string };
+  readonly backend: { readonly kind: "fake"; readonly apiKey: string; readonly exportDelayMs: number };
   readonly maxResultBytes: number;
   readonly maxBodyBytes: number;
   readonly allowedOrigins: readonly string[];
@@ -57,13 +60,19 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>, re
   const parsed = EnvSchema.safeParse(env);
   if (!parsed.success) throw new Error(`Invalid configuration: ${z.prettifyError(parsed.error)}`);
   const values = parsed.data;
+  if (values.MCP_TASKS_PATH === values.MCP_PATH) throw new Error("Invalid configuration: MCP_TASKS_PATH must differ from MCP_PATH.");
   return Object.freeze({
     host: values.HOST,
     port: values.PORT,
     mcpPath: values.MCP_PATH,
+    tasksPath: values.MCP_TASKS_PATH,
     connectionToken: readSecret("CONNECTION_TOKEN", values.CONNECTION_TOKEN, values.CONNECTION_TOKEN_FILE, 32, read),
     trustCallerContext: values.TRUST_CALLER_CONTEXT,
-    backend: { kind: values.BACKEND, apiKey: readSecret("BACKEND_API_KEY", values.BACKEND_API_KEY, values.BACKEND_API_KEY_FILE, 16, read) },
+    backend: {
+      kind: values.BACKEND,
+      apiKey: readSecret("BACKEND_API_KEY", values.BACKEND_API_KEY, values.BACKEND_API_KEY_FILE, 16, read),
+      exportDelayMs: values.FAKE_EXPORT_DELAY_MS,
+    },
     maxResultBytes: values.MAX_RESULT_BYTES,
     maxBodyBytes: values.MAX_BODY_BYTES,
     allowedOrigins: values.ALLOWED_ORIGINS,

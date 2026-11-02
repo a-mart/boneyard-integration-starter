@@ -1,0 +1,8 @@
+{
+  "tools": {
+    "tickets_export": [
+      { "arguments": { "status": "open" } },
+      { "arguments": { "status": "archived" }, "expect": "error", "note": "Not a ticket status." }
+    ]
+  }
+}

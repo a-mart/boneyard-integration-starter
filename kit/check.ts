@@ -5,6 +5,8 @@ import { checkAuth } from "./checks/auth.js";
 import { checkCanaries, checkErrorsAsResults, checkFixtureCoverage, checkResultSizes, executePlan } from "./checks/behavior.js";
 import { checkAnnotations, checkCatalogSecrets, checkInputSchemas, checkMetadata, checkToolNames, discover, type Discovery } from "./checks/catalog.js";
 import { checkForgedContextIgnored, checkMalformedContextTolerated } from "./checks/context.js";
+import { checkTaskRuns, checkTaskSupport } from "./checks/tasks.js";
+import { checkWaitCalls, checkWaitTools } from "./checks/waits.js";
 import { NO_FIXTURES, type Fixtures } from "./fixtures.js";
 import { result, type CheckResult, type Report } from "./report.js";
 import { authHeaders, connect, type Target } from "./target.js";
@@ -19,7 +21,16 @@ export interface CheckOptions {
   readonly maxResultBytes?: number;
 }
 
-const FAKE_CHECK_IDS = ["calls.fixtures", "secrets.canary", "results.size", "results.errors", "context.forged-ignored", "context.malformed"];
+const FAKE_CHECK_IDS = [
+  "calls.fixtures",
+  "secrets.canary",
+  "results.size",
+  "results.errors",
+  "follow.wait-calls",
+  "follow.task-runs",
+  "context.forged-ignored",
+  "context.malformed",
+];
 
 function skippedFakeChecks(reason: string): CheckResult[] {
   return FAKE_CHECK_IDS.map((id) => result(id, "fake", "skip", reason));
@@ -38,9 +49,11 @@ async function fakeChecks(target: Target, discovery: Discovery, options: CheckOp
     checks.push(checkCanaries(executed, secrets));
     checks.push(checkResultSizes(executed, options.maxResultBytes ?? MAX_TOOL_RESULT_BYTES));
     checks.push(await checkErrorsAsResults(session, discovery.tools));
+    checks.push(checkWaitCalls(discovery.tools, executed));
   } finally {
     await session.close();
   }
+  checks.push(await checkTaskRuns(target, discovery, fixtures, secrets));
   checks.push(
     options.trustsCallerContext === true
       ? result("context.forged-ignored", "fake", "skip", "The server is declared to trust caller context (--trusts-caller-context).")
@@ -57,6 +70,7 @@ export async function runChecks(target: Target, options: CheckOptions): Promise<
   checks.push(...(await checkAuth(target)));
   if (discovery !== null) {
     checks.push(checkToolNames(discovery.tools), checkAnnotations(discovery.tools), checkInputSchemas(discovery.tools), checkMetadata(discovery.tools));
+    checks.push(checkWaitTools(discovery.tools), checkTaskSupport(discovery));
     checks.push(checkCatalogSecrets(discovery, [target.token, ...options.canaries]));
   }
   if (!options.fake) checks.push(...skippedFakeChecks("Needs --fake: the server must run on test data (a fake backend or synthetic fixtures)."));
